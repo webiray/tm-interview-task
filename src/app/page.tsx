@@ -1,79 +1,106 @@
+"use client";
+import { AddNoteForm } from "./note-form/AddNoteForm";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Notes } from "./components/Notes";
+import { Loading } from "./components/ui/Loading";
+import { TagsFilter } from "./components/TagsFilter";
+import { Search } from "./components/ui/Search";
+import { filterNotes } from "@/lib/filterNotes";
+import { deleteNoteAction } from "@/lib/deleteNote";
+import { Error } from "./components/ui/Error";
+
+interface Note {
+  title: string;
+  description: string;
+  tags: string[];
+}
+
 export default function Home() {
+  const [existingNotes, setExistingNotes] = useState<Note[]>([]);
+  const [updateFlag, setUpdateFlag] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showSuccess, setShowSuccess] = useState<{
+    open: boolean;
+    action?: "delete" | "create";
+  }>({
+    open: false,
+  });
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      setLoading(true);
+      try {
+        const storedNotes = localStorage.getItem("notes");
+        const notes = storedNotes ? JSON.parse(storedNotes) : [];
+        setExistingNotes(notes);
+      } catch (error) {
+        setError(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, [updateFlag]);
+
+  const deleteNote = useCallback((index: number) => {
+    deleteNoteAction(
+      index,
+      setShowSuccess,
+      setUpdateFlag,
+      setLoadingDelete,
+      setDeleteError
+    );
+  }, []);
+
+  const filteredNotes = useMemo(() => {
+    return filterNotes(existingNotes, selectedTags, searchTerm);
+  }, [existingNotes, selectedTags, searchTerm]);
+
+  const allTags = existingNotes.flatMap((note) => note.tags);
+
+  if (error) {
+    <div><Error errorText="Error occurred..." /></div>;
+  }
+
   return (
-    <main className="prose mx-auto py-12">
-      <h1>Dynamic Note-Taking App with Tags and Search</h1>
-      <p>🎉 Congratulations! You&apos;ve made it to the 2nd step of the technical interview - building a small app to showcase your Typescript and React skills.</p>
-      <p>You are tasked with making a dynamic note-taking app where users can add, delete, and search for notes based on their content and tags. This app should demonstrate your ability to handle forms, manage state, and build a responsive UI with simple search and filter functionalities.</p>
-
-      <h2>Exact Requirements</h2>
-      <div className="flex flex-col gap-y-3">
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-1" type="checkbox" />
-          <label htmlFor="req-1" className="leading-tight">
-            <b>Fork this repo</b> to your own <a href="https://github.com">Github</a> account.
-          </label>
+    <div className="min-h-screen bg-gray-100 p-4">
+      <header className="bg-white p-1 rounded-md mb-4 text-center">
+        <h1 className="text-2xl font-bold">Hello!</h1>
+        <p className="mt-1">Welcome to your notes application.</p>
+      </header>
+      <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4">
+        <TagsFilter tags={allTags} setSelectedTags={setSelectedTags} />
+        <Search searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+      </div>
+      <div className="flex flex-col-reverse md:flex-row gap-4">
+        <div className="flex-1">
+          <AddNoteForm
+            setUpdateFlag={setUpdateFlag}
+            setShowSuccess={setShowSuccess}
+            showSuccess={showSuccess}
+          />
         </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-2" type="checkbox" />
-          <label htmlFor="req-2" className="leading-tight">
-            Add a <b>form</b> to allow the user to add new notes with a title, body, and tags (e.g., work, personal, etc.).
-          </label>
-        </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-3" type="checkbox" />
-          <label htmlFor="req-3" className="leading-tight">
-            Display all notes in a <b>list</b> below the form with the title, body, and associated tags.
-          </label>
-        </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-4" type="checkbox" />
-          <label htmlFor="req-4" className="leading-tight">
-            Implement a <b>delete button</b> next to each note that removes it from the list.
-          </label>
-        </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-5" type="checkbox" />
-          <label htmlFor="req-5" className="leading-tight">
-            Add a <b>search bar</b> that allows users to filter notes by title or content.
-          </label>
-        </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="req-6" type="checkbox" />
-          <label htmlFor="req-6" className="leading-tight">
-            Add <b>tag filtering</b> functionality that allows users to filter notes based on tags.
-          </label>
+        <div className="flex-1 m-4">
+          {loading ? (
+            <Loading />
+          ) : (
+            <Notes
+              notes={filteredNotes}
+              deleteNote={deleteNote}
+              showSuccess={showSuccess}
+              setShowSuccess={setShowSuccess}
+              loadingDelete={loadingDelete}
+              deleteError={deleteError}
+            />
+          )}
         </div>
       </div>
-
-      <h2>Additional Requirements</h2>
-      <p>The following additional requirements should be met:</p>
-      <div className="flex flex-col gap-y-3">
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="setting-1" type="checkbox" />
-          <label htmlFor="setting-1" className=" leading-tight">
-            Ensure that the app&apos;s <b>state persists</b> between page reloads (using localStorage or another method).
-          </label>
-        </div>
-
-        <div className="flex flex-row gap-x-2 items-center">
-          <input id="setting-2" type="checkbox" />
-          <label htmlFor="setting-2" className=" leading-tight">
-            The app should be <b>responsive</b> and usable on both desktop and mobile devices.
-          </label>
-        </div>
-      </div>
-
-      <h2>Example Note</h2>
-      <p>
-        Title: &quot;Buy groceries&quot; <br />
-        Tags: &quot;personal&quot; <br />
-        Body: &quot;Remember to buy milk, bread, and eggs.&quot;
-      </p>
-    </main>
+    </div>
   );
 }
